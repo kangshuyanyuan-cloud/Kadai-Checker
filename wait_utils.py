@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # .envから待機時間を読み込む（デフォルト値付き）
-MIN_WAIT = float(os.getenv("MIN_WAIT_SEC", "2"))
-MAX_WAIT = float(os.getenv("MAX_WAIT_SEC", "5"))
+MIN_WAIT = float(os.getenv("MIN_WAIT_SEC", "0.1"))
+MAX_WAIT = float(os.getenv("MAX_WAIT_SEC", "0.3"))
 
 
 async def random_wait(min_sec: float = None, max_sec: float = None) -> None:
@@ -25,26 +25,25 @@ async def random_wait(min_sec: float = None, max_sec: float = None) -> None:
 
 
 async def short_wait() -> None:
-    """短い待機（0.3〜0.8秒）- 要素クリック前後など"""
-    await asyncio.sleep(random.uniform(0.3, 0.8))
+    """短い待機"""
+    await asyncio.sleep(random.uniform(0.1, 0.2))
 
 
 async def medium_wait() -> None:
-    """中程度の待機（1〜2.5秒）- ページ遷移後など"""
-    await asyncio.sleep(random.uniform(1.0, 2.5))
+    """中程度の待機"""
+    await asyncio.sleep(random.uniform(0.2, 0.4))
 
 
 async def long_wait() -> None:
-    """長い待機（3〜7秒）- ログイン後、重いページなど"""
-    await asyncio.sleep(random.uniform(3.0, 7.0))
+    """長い待機"""
+    await asyncio.sleep(random.uniform(0.3, 0.5))
 
 
 async def think_wait() -> None:
-    """人間が「考えている」ように見える待機（0.5〜1.5秒）"""
-    await asyncio.sleep(random.uniform(0.5, 1.5))
+    """考えている待機"""
+    await asyncio.sleep(random.uniform(0.1, 0.3))
 
 
 async def typing_delay() -> float:
     """タイピング1文字あたりの遅延時間を返す（ミリ秒）"""
-    # 人間のタイピング速度：50〜150ミリ秒/文字
-    return random.uniform(50, 150)
+    return random.uniform(10, 30)

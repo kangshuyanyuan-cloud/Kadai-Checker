@@ -34,16 +34,16 @@ class HumanBehavior:
         mid_x = (start_x + x) / 2 + random.randint(-50, 50)
         mid_y = (start_y + y) / 2 + random.randint(-50, 50)
 
-        # 20ステップに分けてなめらかに移動
-        steps = random.randint(15, 25)
+        # ステップを減らして高速化
+        steps = random.randint(3, 5)
         for i in range(steps + 1):
             t = i / steps
             # 2次ベジェ曲線の計算
             bx = (1 - t) ** 2 * start_x + 2 * (1 - t) * t * mid_x + t ** 2 * x
             by = (1 - t) ** 2 * start_y + 2 * (1 - t) * t * mid_y + t ** 2 * y
             await self.page.mouse.move(bx, by)
-            # ステップ間の待機（だんだん遅くなる感じ）
-            delay = random.uniform(0.01, 0.04)
+            # ステップ間の待機
+            delay = random.uniform(0.001, 0.005)
             await asyncio.sleep(delay)
 
     async def human_click(self, locator: Locator) -> None:
@@ -63,7 +63,7 @@ class HumanBehavior:
 
                 # マウスをなめらかに移動
                 await self.human_move_to(click_x, click_y)
-                await asyncio.sleep(random.uniform(0.1, 0.3))
+                await asyncio.sleep(random.uniform(0.01, 0.05))
 
                 # クリック
                 await self.page.mouse.click(click_x, click_y)
@@ -81,7 +81,7 @@ class HumanBehavior:
         1文字ずつランダムな速度でテキストを入力する（人間のタイピング再現）。
         """
         await self.human_click(locator)
-        await asyncio.sleep(random.uniform(0.2, 0.5))
+        await asyncio.sleep(random.uniform(0.05, 0.1))
 
         # 1文字ずつ入力
         for char in text:
@@ -89,9 +89,9 @@ class HumanBehavior:
             delay_ms = await typing_delay()
             await asyncio.sleep(delay_ms / 1000)
 
-            # たまに少し長く止まる（人間らしい）
-            if random.random() < 0.1:
-                await asyncio.sleep(random.uniform(0.2, 0.5))
+            # たまに少し長く止まる
+            if random.random() < 0.05:
+                await asyncio.sleep(random.uniform(0.05, 0.1))
 
     async def human_scroll(self, direction: str = "down", amount: int = None) -> None:
         """
@@ -105,15 +105,15 @@ class HumanBehavior:
         if direction == "up":
             amount = -amount
 
-        # 数回に分けてスクロール（一気にスクロールしない）
-        scroll_steps = random.randint(3, 7)
+        # 数回に分けてスクロール
+        scroll_steps = random.randint(1, 2)
         step_amount = amount // scroll_steps
 
         for _ in range(scroll_steps):
             await self.page.mouse.wheel(0, step_amount)
-            await asyncio.sleep(random.uniform(0.05, 0.15))
+            await asyncio.sleep(random.uniform(0.01, 0.05))
 
-        await asyncio.sleep(random.uniform(0.3, 0.8))
+        await asyncio.sleep(random.uniform(0.05, 0.1))
 
     async def random_mouse_movement(self) -> None:
         """
@@ -123,14 +123,14 @@ class HumanBehavior:
             x = random.randint(200, 1000)
             y = random.randint(100, 700)
             await self.human_move_to(x, y)
-            await asyncio.sleep(random.uniform(0.1, 0.3))
+            await asyncio.sleep(random.uniform(0.01, 0.05))
 
     async def simulate_reading(self) -> None:
         """
         ページを読んでいるように見せる（スクロールしながら待機）。
         """
-        read_time = random.uniform(2.0, 5.0)
-        scroll_count = random.randint(1, 3)
+        read_time = random.uniform(0.1, 0.5)
+        scroll_count = random.randint(1, 2)
 
         for _ in range(scroll_count):
             await asyncio.sleep(read_time / scroll_count)

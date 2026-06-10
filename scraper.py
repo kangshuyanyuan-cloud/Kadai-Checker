@@ -29,8 +29,7 @@ class MoodleScraper:
         print("[Step 1] カレンダー（直近のイベント）へアクセス...")
         upcoming_url = f"{MOODLE_URL}/calendar/view.php?view=upcoming"
         await self.page.goto(upcoming_url, wait_until="domcontentloaded")
-        await asyncio.sleep(3)
-        await self.human.simulate_reading()
+        await asyncio.sleep(1)
 
         # HTMLからイベントのリンクを抽出
         html = await self.page.content()
@@ -113,7 +112,7 @@ class MoodleScraper:
             
             try:
                 await self.page.goto(url, wait_until="domcontentloaded")
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.5)
                 
                 # 詳細ページから情報取得
                 page_html = await self.page.content()
@@ -122,19 +121,37 @@ class MoodleScraper:
                 
                 # --- 詳細ページから期限を直接取得（確実な方法） ---
                 deadline_text = "不明"
-                
-                # 正規表現を使って、全テキストから直接「2026年 06月 2日(火曜日) 10:50」のような日付を抜く
                 import re
-                
-                # 「終了予定: 〇年〇月〇日」などを探す
-                match = re.search(r"(終了予定|期限|due|締切|提出期限|終了).*?(\d{4}年\s*\d{1,2}月\s*\d{1,2}日.*?\d{1,2}:\d{1,2})", full_text, re.IGNORECASE)
-                if match:
-                    deadline_text = match.group(2).strip()
-                else:
-                    # キーワードがなくても日付らしいものがあればそれを採用する（開始予定は除く）
-                    match2 = re.search(r"(?<!開始予定:\s)(\d{4}年\s*\d{1,2}月\s*\d{1,2}日.*?\d{1,2}:\d{1,2})", full_text)
-                    if match2:
-                        deadline_text = match2.group(1).strip()
+
+                found_deadline = False
+                # 1. まずはテーブル行（tr）などから正確に探す
+                for tr in page_soup.find_all(["tr", "div", "li"]):
+                    row_text = tr.get_text(" ", strip=True)
+                    # 「開始」が含まれる行は無視（開始日時などを誤って拾わないため）
+                    if "開始" in row_text:
+                        continue
+                    # 終了や期限に関するキーワードがあるか
+                    if any(kw in row_text.lower() for kw in ["終了予定", "期限", "due", "締切", "提出期限", "終了日時", "終了"]):
+                        match = re.search(r"(\d{4}年\s*\d{1,2}月\s*\d{1,2}日.*?\d{1,2}:\d{1,2})", row_text)
+                        if match:
+                            deadline_text = match.group(1).strip()
+                            found_deadline = True
+                            break
+
+                # 2. それでも見つからない場合は、テキスト全体を改行で区切って探す
+                if not found_deadline:
+                    blocks = page_soup.get_text("\n", strip=True).split("\n")
+                    for i, block in enumerate(blocks):
+                        if "開始" in block:
+                            continue
+                        if any(kw in block.lower() for kw in ["終了予定", "期限", "due", "締切", "提出期限", "終了"]):
+                            search_text = block
+                            if i + 1 < len(blocks):
+                                search_text += " " + blocks[i+1]
+                            match = re.search(r"(\d{4}年\s*\d{1,2}月\s*\d{1,2}日.*?\d{1,2}:\d{1,2})", search_text)
+                            if match:
+                                deadline_text = match.group(1).strip()
+                                break
                 
                 # 3. カレンダーから取得した情報をフォールバックとして使う
                 if deadline_text == "不明":

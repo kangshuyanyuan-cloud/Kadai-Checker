@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+profiles/
+.env
+error.log
+
+# デバッグ用ファイル（GitHubには不要）
+debug_*.py
+debug_*.html
+debug_*.png
+*.json
+
+# テスト用ファイル
+test_notify.py
+
+# 開発中に使った一時ファイル
+observe_manual.py
+parse_html.py
+quick_scrape.py

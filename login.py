@@ -78,20 +78,20 @@ async def _fill_and_submit(page: Page, human: HumanBehavior,
     # ID入力（fill() で特殊文字も正確に入力）
     print(f"  [{label}] ID入力中: {KUMADAI_ID}")
     await human.human_click(id_field)
-    await asyncio.sleep(random.uniform(0.2, 0.5))
+    await asyncio.sleep(random.uniform(0.01, 0.05))
     await id_field.fill("")
     await id_field.fill(KUMADAI_ID)
-    await asyncio.sleep(random.uniform(0.2, 0.5))
+    await asyncio.sleep(random.uniform(0.01, 0.05))
 
     await think_wait()
 
     # パスワード入力（fill() で $s=&4#75 のような特殊文字も正確に入力）
     print(f"  [{label}] パスワード入力中...")
     await human.human_click(pw_field)
-    await asyncio.sleep(random.uniform(0.2, 0.5))
+    await asyncio.sleep(random.uniform(0.01, 0.05))
     await pw_field.fill("")
     await pw_field.fill(KUMADAI_PASSWORD)
-    await asyncio.sleep(random.uniform(0.2, 0.5))
+    await asyncio.sleep(random.uniform(0.01, 0.05))
 
     await think_wait()
 
@@ -156,7 +156,7 @@ async def handle_cas(page: Page, human: HumanBehavior) -> bool:
         if await radio.is_visible(timeout=2000):
             print("  [CAS] ユーザー選択ラジオボタンをクリックします")
             await human.human_click(radio)
-            await asyncio.sleep(random.uniform(0.3, 0.7))
+            await asyncio.sleep(random.uniform(0.05, 0.1))
     except Exception:
         pass
 
@@ -187,8 +187,28 @@ async def login(page: Page) -> bool:
     print("Moodleにアクセス中...")
 
     # まずダッシュボードへ直接アクセス（プロファイル再利用チェック）
-    await page.goto(MOODLE_URL.rstrip("/") + "/my/", wait_until="domcontentloaded")
-    await asyncio.sleep(2)
+    # SSL証明書エラーが出ることがあるので、最大3回リトライする
+    for attempt in range(3):
+        try:
+            await page.goto(MOODLE_URL.rstrip("/") + "/my/", wait_until="domcontentloaded", timeout=30000)
+            break  # 成功したらループ終了
+        except Exception as e:
+            error_msg = str(e)
+            if "ERR_CERT" in error_msg or "SSL" in error_msg.upper():
+                print(f"  SSL証明書エラー（試行{attempt + 1}/3）: アクセスを再試行します...")
+                await asyncio.sleep(2)
+                if attempt == 2:
+                    print("  SSL証明書エラーが続いています。")
+                    print("  大学のサーバーに一時的な問題がある可能性があります。")
+                    return False
+            elif "Target" in error_msg and "closed" in error_msg:
+                print("  ブラウザが予期せず閉じました。")
+                return False
+            else:
+                print(f"  アクセスエラー: {e}")
+                return False
+
+    await asyncio.sleep(1)
 
     if await is_logged_in(page):
         print("すでにログイン済みです（プロファイル再利用）")
@@ -196,9 +216,23 @@ async def login(page: Page) -> bool:
 
     print("ログインが必要です...")
 
-    # ログインページへアクセス
-    await page.goto(MOODLE_URL.rstrip("/") + "/login/index.php", wait_until="domcontentloaded")
-    await asyncio.sleep(3)
+    # ログインページへアクセス（こちらもリトライ付き）
+    for attempt in range(3):
+        try:
+            await page.goto(MOODLE_URL.rstrip("/") + "/login/index.php", wait_until="domcontentloaded", timeout=30000)
+            break
+        except Exception as e:
+            error_msg = str(e)
+            if "ERR_CERT" in error_msg or "SSL" in error_msg.upper():
+                print(f"  SSL証明書エラー（試行{attempt + 1}/3）: アクセスを再試行します...")
+                await asyncio.sleep(2)
+                if attempt == 2:
+                    return False
+            else:
+                print(f"  アクセスエラー: {e}")
+                return False
+
+    await asyncio.sleep(1)
     print(f"  現在のURL: {page.url}")
 
     # --- 最大5ステップの認証ループ ---
@@ -222,7 +256,7 @@ async def login(page: Page) -> bool:
                 await page.wait_for_load_state("domcontentloaded", timeout=30000)
             except Exception:
                 pass
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
             continue
 
         # CASページ
@@ -241,7 +275,7 @@ async def login(page: Page) -> bool:
 
         # その他（不明なページ） → 少し待ってリトライ
         print(f"  不明なページです。待機してリトライします...")
-        await asyncio.sleep(4)
+        await asyncio.sleep(2)
 
     # 最終確認
     final_url = page.url
